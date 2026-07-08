@@ -4,16 +4,17 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PostResource\Pages;
 use App\Models\Post;
-use App\Models\Category;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class PostResource extends Resource
 {
     protected static ?string $model = Post::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     public static function form(Form $form): Form
@@ -29,7 +30,7 @@ class PostResource extends Resource
                                 ->required()
                                 ->live(onBlur: true)
                                 ->afterStateUpdated(fn (Forms\Set $set, ?string $state) =>
-                                    $set('slug', \Illuminate\Support\Str::slug($state))),
+                                    $set('slug', Str::slug($state))),
 
                             Forms\Components\TextInput::make('slug')
                                 ->required()
@@ -55,6 +56,7 @@ class PostResource extends Resource
                             Forms\Components\Select::make('category_id')
                                 ->relationship('category', 'name')
                                 ->searchable()
+                                ->preload()
                                 ->createOptionForm([
                                     Forms\Components\TextInput::make('name')->required(),
                                 ]),
@@ -72,18 +74,31 @@ class PostResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('category.name'),
+                Tables\Columns\TextColumn::make('category.name')->badge(),
                 Tables\Columns\BadgeColumn::make('status')
-                    ->colors(['secondary' => 'draft', 'success' => 'published']),
+                    ->colors([
+                        'secondary' => 'draft',
+                        'success' => 'published',
+                    ]),
                 Tables\Columns\TextColumn::make('published_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('updated_at')->dateTime()->since()->sortable(),
             ])
+            ->defaultSort('updated_at', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
                     ->options(['draft' => 'Draft', 'published' => 'Published']),
+                Tables\Filters\SelectFilter::make('category_id')
+                    ->relationship('category', 'name')
+                    ->label('Category'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
             ]);
     }
 
